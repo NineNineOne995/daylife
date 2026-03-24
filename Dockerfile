@@ -1,12 +1,15 @@
 # Dockerfile
 
 # 1. 构建阶段：使用 Node.js 镜像来打包项目
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
+
+# 安装 pnpm（官方推荐方式）
+RUN npm install -g pnpm
 
 WORKDIR /app
 
-# 复制 package.json 并安装依赖 (利用缓存)
-COPY package*.json ./
+# 复制依赖清单（支持 pnpm-lock.yaml 缓存）
+COPY package.json pnpm-lock.yaml ./
 RUN npm ci
 
 # 复制所有源代码并执行构建
