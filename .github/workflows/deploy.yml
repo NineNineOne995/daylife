@@ -1,44 +1,37 @@
-name: Frontend CD Pipeline
+name: Deploy to Vercel
 
 on:
   push:
     branches:
-      - develop # 测试环境分支
-      - main # 生产环境分支
+      - main # 监听 main 分支，你推送到 main 时触发
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-
-    # 根据推送的分支，决定部署到哪个环境
-    environment:
-      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+  deploy:
+    runs-on: ubuntu-latest # 使用 Ubuntu 环境运行
 
     steps:
-      # 1. 检出代码
-      - name: Checkout code
-        uses: actions/checkout@v4
+      # 1. 下载你的代码
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-      # 2. 构建 Docker 镜像
-      - name: Build Docker image
-        run: docker build -t my-app:${{ github.sha }} .
-
-      # 3. 部署到服务器 (通过 SSH)
-      - name: Deploy to server via SSH
-        uses: appleboy/ssh-action@master
+      # 2. 安装 Node.js
+      - name: Setup Node
+        uses: actions/setup-node@v3
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            # 在服务器上执行的命令
-            # 停止并删除旧容器
-            docker stop my-app || true
-            docker rm my-app || true
+          node-version: "18"
 
-            # 将新的镜像从 GitHub Runner 复制到服务器 (这里简化了，实际可能需要推送到镜像仓库)
-            # 为了简化，我们假设通过 scp 将本地构建的镜像传到服务器
-            # 更专业的做法是推送到 Docker Hub 或私有仓库，然后在服务器上 pull
+      # 3. 安装 Vercel 的命令行工具
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
 
-            # 运行新容器
-            docker run -d --name my-app -p 80:80 my-app:${{ github.sha }}
+      # 4. 拉取 Vercel 项目配置 (这一步是为了让 GitHub 知道这是哪个 Vercel 项目)
+      - name: Pull Vercel Environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      # 5. 构建项目 (生成 dist 目录)
+      - name: Build Project
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      # 6. 部署上线！
+      - name: Deploy to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
